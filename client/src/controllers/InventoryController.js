@@ -15,6 +15,7 @@ export class InventoryController {
         this.totalPages = 0
         this.paginationContainer = document.querySelector('#pagination')
         this._initFormListener()
+        this._initSearchBarListener()
     }
 
     render(products) {
@@ -82,16 +83,16 @@ export class InventoryController {
         const deleteButtons = this.tableBody.querySelectorAll('.delete-btn')
 
         editButtons.forEach((editBtn) => {
-            editBtn.addEventListener('click', (e) => {
-                const idProduct = e.currentTarget.dataset.id
+            editBtn.addEventListener('click', (event) => {
+                const idProduct = event.currentTarget.dataset.id
                 const product = this.products.get(String(idProduct))
                 this._handleEdit(product)
             })
         })
 
         deleteButtons.forEach((delBtn) => {
-            delBtn.addEventListener('click', (e) => {
-                const idProduct = e.currentTarget.dataset.id
+            delBtn.addEventListener('click', (event) => {
+                const idProduct = event.currentTarget.dataset.id
                 const product = this.products.get(String(idProduct))
                 if (product) this._handleDelete(product)
             })
@@ -112,6 +113,20 @@ export class InventoryController {
         this.form.dataset.editId = product.id
     }
 
+    _initSearchBarListener() {
+        const bar = document.querySelector('.search-bar')
+        bar.addEventListener('keydown', (event)=>{
+            if (event.key != 'Esc') {
+                bar.textContent = ''
+            } else {
+                this._searchProduct()
+            }
+        })
+    }
+
+    _searchProduct(){
+        return 'hola'
+    }
     _initFormListener() {
         const submitBtn = this.form.querySelector('#btn-submit')
         const cancelBtn = this.form.querySelector('#btn-cancel')
