@@ -1,45 +1,29 @@
-import { createProduct, updateProduct, deleteProduct } from "../services/product.service"
 import { tableRow, formatStockText, getColorByStock, formatPriceText } from "../shared/components/tableRow"
 import { showToast, showConfirm } from "../shared/components/Toast"
 import { statCard } from "../shared/components/statsCard"
 import { pagination } from "../shared/components/paginationFooter"
 
-
 export class InventoryController {
-    constructor(containerSelector, formSelector) {
+    constructor(containerSelector, formSelector, model) {
+        this.model = model
         this.tableBody = document.querySelector(containerSelector)
         this.form = document.querySelector(formSelector)
-        this.products = new Map()
-        this.currentPage = 1
-        this.itemsPerPage = 3
-        this.totalPages = 0
         this.paginationContainer = document.querySelector('#pagination')
         this._initFormListener()
         this._initSearchBarListener()
     }
 
-    render(products) {
-        if (!products) {
-            throw new Error('No hay productos en el inventario')
-        }
-        products.forEach((product) => {
-            this.products.set(String(product.id), product)
-        })
-        this._renderTable(products)
+    render() {
+        this._renderTable()
         this._renderStats()
     }
 
-    _renderTable(products) {
+    _renderTable() {
         let tableRows = ''
-        const startIndex = (this.currentPage - 1) * this.itemsPerPage
-        const endIndex = startIndex + this.itemsPerPage
-        const itemsToShow = products.slice(startIndex, endIndex)
-        this.totalPages = products.length
+        const itemsToShow = this.model.getPaginatedProducts()
 
         itemsToShow.forEach(product => {
-
             tableRows += tableRow(product)
-
         })
         this.tableBody.innerHTML = tableRows
         this._attachEventListeners()
@@ -47,11 +31,11 @@ export class InventoryController {
     }
 
     _renderPaginationUI() {
-        const totalItems = this.totalPages
-        const start = totalItems === 0 ? 0 : (this.currentPage - 1) * this.itemsPerPage + 1
-        const end = Math.min(this.currentPage * this.itemsPerPage, totalItems)
-        const hasPrev = this.currentPage > 1
-        const hasNext = this.currentPage < Math.trunc(totalItems / this.itemsPerPage)+1
+        const totalItems = this.model.getTotalItems()
+        const start = totalItems === 0 ? 0 : (this.model.currentPage - 1) * this.model.itemsPerPage + 1
+        const end = Math.min(this.model.currentPage * this.model.itemsPerPage, totalItems)
+        const hasPrev = this.model.currentPage > 1
+        const hasNext = this.model.currentPage < Math.ceil(totalItems / this.model.itemsPerPage)
 
         if (this.paginationContainer) {
             this.paginationContainer.innerHTML = pagination({ start, end, total: totalItems, hasPrev, hasNext })
@@ -65,15 +49,17 @@ export class InventoryController {
 
         if (btnPrev && !btnPrev.disabled) {
             btnPrev.addEventListener('click', () => {
-                this.currentPage--
-                this._renderTable(Array.from(this.products.values()))
+                if (this.model.prevPage()) {
+                    this._renderTable()
+                }
             })
         }
 
         if (btnNext && !btnNext.disabled) {
             btnNext.addEventListener('click', () => {
-                this.currentPage++
-                this._renderTable(Array.from(this.products.values()))
+                if (this.model.nextPage()) {
+                    this._renderTable()
+                }
             })
         }
     }
@@ -85,7 +71,7 @@ export class InventoryController {
         editButtons.forEach((editBtn) => {
             editBtn.addEventListener('click', (event) => {
                 const idProduct = event.currentTarget.dataset.id
-                const product = this.products.get(String(idProduct))
+                const product = this.model.getProduct(idProduct)
                 this._handleEdit(product)
             })
         })
@@ -93,7 +79,7 @@ export class InventoryController {
         deleteButtons.forEach((delBtn) => {
             delBtn.addEventListener('click', (event) => {
                 const idProduct = event.currentTarget.dataset.id
-                const product = this.products.get(String(idProduct))
+                const product = this.model.getProduct(idProduct)
                 if (product) this._handleDelete(product)
             })
         })
@@ -108,25 +94,21 @@ export class InventoryController {
         document.querySelector('#form-title').textContent = 'Editando producto'
         const submitBtn = this.form.querySelector('#btn-submit')
         submitBtn.textContent = 'Actualizar'
-
         this.form.dataset.mode = 'edit'
         this.form.dataset.editId = product.id
     }
 
     _initSearchBarListener() {
-        const bar = document.querySelector('.search-bar')
-        bar.addEventListener('keydown', (event)=>{
+        const bar = document.querySelector('#search-bar')
+        bar.addEventListener('keydown', (event) => {
             if (event.key != 'Esc') {
                 bar.textContent = ''
             } else {
-                this._searchProduct()
+                this.model.searchProduct('hola')
             }
         })
     }
 
-    _searchProduct(){
-        return 'hola'
-    }
     _initFormListener() {
         const submitBtn = this.form.querySelector('#btn-submit')
         const cancelBtn = this.form.querySelector('#btn-cancel')
@@ -173,7 +155,7 @@ export class InventoryController {
             showToast('Advertencia', 'El nombre es obligatorio', 'warning')
             throw new Error('Nombre invalido')
         }
-        
+
         if (!newPrice || newPrice <= 0) {
             showToast('Advertencia', 'El precio debe ser mayor a 0', 'warning')
             throw new Error('Precio invalido')
@@ -196,23 +178,15 @@ export class InventoryController {
 
     async _handleCreate() {
         const newData = this._validateInputs()
-        const createdProduct = await createProduct(newData)
-        this.products.set(String(createdProduct.id), createdProduct)
-        const allProductsArray = Array.from(this.products.values())
-        this.currentPage = Math.trunc(allProductsArray.length / this.itemsPerPage) + 1
-        this._renderTable(allProductsArray)
+        await this.model.addProduct(newData)
+        this._renderTable()
         this._renderStats()
     }
 
     async _handleUpdate(id) {
-        const idStr = String(id)
         const newData = this._validateInputs()
-        newData.id = id
-
-        await updateProduct(idStr, newData)
-
-        this.products.set(idStr, newData)
-        this._updateRowDOM(newData)
+        const updatedProduct = await this.model.updateExistingProduct(id, newData)
+        this._updateRowDOM(updatedProduct)
         this._renderStats()
     }
 
@@ -225,18 +199,8 @@ export class InventoryController {
         )
 
         if (isConfirmed) {
-            this.products.delete(String(product.id))
-
-            const allProductsArray = Array.from(this.products.values())
-            const totalPagesCalculated = Math.ceil(allProductsArray.length / this.itemsPerPage)
-            
-            if (this.currentPage > totalPagesCalculated && totalPagesCalculated > 0) {
-                this.currentPage = totalPagesCalculated
-            }
-
-            this._renderTable(allProductsArray)
-
-            await deleteProduct(product.id)
+            await this.model.removeProduct(product.id)
+            this._renderTable()
             showToast('Notificación', 'Producto eliminado correctamente', 'success')
             this._renderStats()
         }
@@ -265,14 +229,7 @@ export class InventoryController {
     }
 
     _renderStats() {
-        let totalSKU = this.products.size
-        let totalValue = 0
-        let criticalStock = 0
-
-        this.products.forEach((value) => {
-            totalValue += value.stock * value.precio
-            if (value.stock <= 5) criticalStock++
-        })
+        const stats = this.model.getStats()
 
         const statsContainer = document.querySelector('#stats')
         if (!statsContainer) return
@@ -280,16 +237,16 @@ export class InventoryController {
         statsContainer.innerHTML = `
             ${statCard({
             title: 'Total SKU',
-            value: totalSKU
+            value: stats.totalSKU
         })}
             ${statCard({
             title: 'Valor Inventario',
-            value: '$' + formatPriceText(totalValue),
+            value: '$' + formatPriceText(stats.totalValue),
             borderStyle: 'border-l-4 border-l-indigo-500'
         })}
             ${statCard({
             title: 'Stock Crítico',
-            value: criticalStock,
+            value: stats.criticalStock,
             borderStyle: 'border-l-4 border-l-rose-500',
             valueColor: 'text-rose-500'
         })}
