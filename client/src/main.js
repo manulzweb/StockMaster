@@ -1,5 +1,6 @@
 import { getProducts } from './services/product.service';
 import { showToast } from './shared/components/Toast';
+import { InventoryModel } from './models/InventoryModel';
 import { InventoryController } from "./controllers/InventoryController";
 import { ThemeController } from "./controllers/ThemeController";
 import { initI18n } from "./shared/i18n";

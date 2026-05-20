@@ -1,18 +1,46 @@
 {
   "productos": [
     {
-      "nombre": "Album Panini",
-      "precio": 20000000,
+      "nombre": "Producto 11",
+      "precio": 3,
       "stock": 1,
       "descripcion": "Sin descripción",
-      "id": "fg3wcTLOdYE"
+      "id": "XFoJwfZUS6A"
     },
     {
-      "nombre": "Pc Pavilion",
-      "precio": 8,
-      "stock": 8,
+      "nombre": "Producto2",
+      "precio": 4,
+      "stock": 4,
       "descripcion": "Sin descripción",
-      "id": "5sBCyL7NrN8"
+      "id": "AFGcaO3m1Kc"
+    },
+    {
+      "nombre": "Producto3",
+      "precio": 3,
+      "stock": 4,
+      "descripcion": "Sin descripción",
+      "id": "AM9hTJSfbIE"
+    },
+    {
+      "nombre": "Producto 1",
+      "precio": 55,
+      "stock": 555,
+      "descripcion": "Sin descripción",
+      "id": "hOFCGV1YUQc"
+    },
+    {
+      "nombre": "5",
+      "precio": 5,
+      "stock": 5,
+      "descripcion": "555",
+      "id": "GoBTDQ3sF-k"
+    },
+    {
+      "nombre": "Producto 55",
+      "precio": 5,
+      "stock": 100,
+      "descripcion": "5",
+      "id": "h_sAWWhYYkY"
     }
   ],
   "$schema": "./node_modules/json-server/schema.json"

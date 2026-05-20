@@ -1,4 +1,3 @@
-import { createProduct, updateProduct, deleteProduct } from "../services/product.service"
 import { tableRow, formatStockText, getColorByStock, formatPriceText } from "../shared/components/tableRow"
 import { showToast, showConfirm } from "../shared/components/Toast"
 import { statCard } from "../shared/components/statsCard"
@@ -7,13 +6,10 @@ import i18next from 'i18next'
 
 
 export class InventoryController {
-    constructor(containerSelector, formSelector) {
+    constructor(containerSelector, formSelector, model) {
+        this.model = model
         this.tableBody = document.querySelector(containerSelector)
         this.form = document.querySelector(formSelector)
-        this.products = new Map()
-        this.currentPage = 1
-        this.itemsPerPage = 3
-        this.totalPages = 0
         this.paginationContainer = document.querySelector('#pagination')
         this._initFormListener()
         this._initSearchBarListener()
@@ -30,17 +26,12 @@ export class InventoryController {
         this._renderStats()
     }
 
-    _renderTable(products) {
+    _renderTable() {
         let tableRows = ''
-        const startIndex = (this.currentPage - 1) * this.itemsPerPage
-        const endIndex = startIndex + this.itemsPerPage
-        const itemsToShow = products.slice(startIndex, endIndex)
-        this.totalPages = products.length
+        const itemsToShow = this.model.getPaginatedProducts()
 
         itemsToShow.forEach(product => {
-
             tableRows += tableRow(product)
-
         })
         this.tableBody.innerHTML = tableRows
         this._attachEventListeners()
@@ -48,11 +39,11 @@ export class InventoryController {
     }
 
     _renderPaginationUI() {
-        const totalItems = this.totalPages
-        const start = totalItems === 0 ? 0 : (this.currentPage - 1) * this.itemsPerPage + 1
-        const end = Math.min(this.currentPage * this.itemsPerPage, totalItems)
-        const hasPrev = this.currentPage > 1
-        const hasNext = this.currentPage < Math.trunc(totalItems / this.itemsPerPage)+1
+        const totalItems = this.model.getTotalItems()
+        const start = totalItems === 0 ? 0 : (this.model.currentPage - 1) * this.model.itemsPerPage + 1
+        const end = Math.min(this.model.currentPage * this.model.itemsPerPage, totalItems)
+        const hasPrev = this.model.currentPage > 1
+        const hasNext = this.model.currentPage < Math.ceil(totalItems / this.model.itemsPerPage)
 
         if (this.paginationContainer) {
             this.paginationContainer.innerHTML = pagination({ start, end, total: totalItems, hasPrev, hasNext })
@@ -86,7 +77,7 @@ export class InventoryController {
         editButtons.forEach((editBtn) => {
             editBtn.addEventListener('click', (event) => {
                 const idProduct = event.currentTarget.dataset.id
-                const product = this.products.get(String(idProduct))
+                const product = this.model.getProduct(idProduct)
                 this._handleEdit(product)
             })
         })
@@ -94,7 +85,7 @@ export class InventoryController {
         deleteButtons.forEach((delBtn) => {
             delBtn.addEventListener('click', (event) => {
                 const idProduct = event.currentTarget.dataset.id
-                const product = this.products.get(String(idProduct))
+                const product = this.model.getProduct(idProduct)
                 if (product) this._handleDelete(product)
             })
         })
@@ -197,7 +188,7 @@ export class InventoryController {
             showToast(i18next.t('toast.warning'), i18next.t('toast.error_name'), 'warning')
             throw new Error('Nombre invalido')
         }
-        
+
         if (!newPrice || newPrice <= 0) {
             showToast(i18next.t('toast.warning'), i18next.t('toast.error_price'), 'warning')
             throw new Error('Precio invalido')
@@ -229,14 +220,9 @@ export class InventoryController {
     }
 
     async _handleUpdate(id) {
-        const idStr = String(id)
         const newData = this._validateInputs()
-        newData.id = id
-
-        await updateProduct(idStr, newData)
-
-        this.products.set(idStr, newData)
-        this._updateRowDOM(newData)
+        const updatedProduct = await this.model.updateExistingProduct(id, newData)
+        this._updateRowDOM(updatedProduct)
         this._renderStats()
     }
 
@@ -291,14 +277,7 @@ export class InventoryController {
     }
 
     _renderStats() {
-        let totalSKU = this.products.size
-        let totalValue = 0
-        let criticalStock = 0
-
-        this.products.forEach((value) => {
-            totalValue += value.stock * value.precio
-            if (value.stock <= 5) criticalStock++
-        })
+        const stats = this.model.getStats()
 
         const statsContainer = document.querySelector('#stats')
         if (!statsContainer) return
